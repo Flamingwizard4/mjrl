@@ -6,11 +6,7 @@ from torch.autograd import Variable
 
 class RNN:
     def __init__(self, env_spec,
-<<<<<<< HEAD
-                 hidden_size=64,
-=======
                  n_layers=1,
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
                  min_log_std=-3,
                  init_log_std=0,
                  seed=None):
@@ -33,11 +29,7 @@ class RNN:
 
         # Policy network
         # ------------------------
-<<<<<<< HEAD
-        self.model = RNN_model(self.n, self.m, hidden_size)
-=======
         self.model = RNN_model(self.n, self.m, n_layers=n_layers)
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
         # make weights small
         for param in list(self.model.parameters())[-2:]:  # only last layer
            param.data = 1e-2 * param.data
@@ -46,11 +38,7 @@ class RNN:
 
         # Old Policy network
         # ------------------------
-<<<<<<< HEAD
-        self.old_model = RNN_model(self.n, self.m, hidden_size)
-=======
         self.old_model = RNN_model(self.n, self.m, n_layers=n_layers)
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
         self.old_log_std = Variable(torch.ones(self.m) * init_log_std)
         self.old_params = list(self.old_model.parameters()) + [self.old_log_std]
         for idx, param in enumerate(self.old_params):
@@ -65,11 +53,7 @@ class RNN:
 
         # Placeholders
         # ------------------------
-<<<<<<< HEAD
-        self.obs_var = Variable(torch.randn(self.n), requires_grad=False)
-=======
         self.obs_var = Variable(torch.randn((1, 1, self.n)), requires_grad=False)
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
 
     # Utility functions
     # ============================================
@@ -104,12 +88,6 @@ class RNN:
 
     # Main functions
     # ============================================
-<<<<<<< HEAD
-    def get_actions(self, observations):
-        #o = np.float32(observation.reshape(1, -1))
-        #self.obs_var.data = torch.from_numpy(o)
-        mean = self.model(self.obs_var).data.numpy().ravel()
-=======
     def get_action(self, observations):
         #print(type(observations))
         #print(observations.shape)
@@ -124,7 +102,6 @@ class RNN:
         out2 = out[-1].detach()
         #raise Exception
         mean = out2.numpy().ravel()
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
         #noise = np.exp(self.log_std_val) * np.random.randn(self.m)
         action = mean# + noise
         return [action, {'mean': mean, 'log_std': self.log_std_val, 'evaluation': mean}]
