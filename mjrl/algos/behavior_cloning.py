@@ -116,17 +116,19 @@ class BC:
         if self.save_logs:
             loss_val = self.loss(data, idx=range(num_samples)).data.numpy().ravel()[0]
             self.logger.log_kv('loss_before', loss_val)
-
+        losses = []
         # train loop
         for ep in config_tqdm(range(self.epochs), suppress_fit_tqdm):
             for mb in range(int(num_samples / self.mb_size)):
                 rand_idx = np.random.choice(num_samples, size=self.mb_size)
                 self.optimizer.zero_grad()
                 loss = self.loss(data, idx=rand_idx)
+                losses.append(loss)
                 loss.backward()
                 self.optimizer.step()
         params_after_opt = self.policy.get_param_values()
         self.policy.set_param_values(params_after_opt, set_new=True, set_old=True)
+        return losses
 
         # log stats after
         if self.save_logs:
@@ -139,7 +141,7 @@ class BC:
         observations = np.concatenate([path["observations"] for path in self.expert_paths])
         expert_actions = np.concatenate([path["actions"] for path in self.expert_paths])
         data = dict(observations=observations, expert_actions=expert_actions)
-        self.fit(data, **kwargs)
+        return self.fit(data, **kwargs)
 
 
 def config_tqdm(range_inp, suppress_tqdm=False):
