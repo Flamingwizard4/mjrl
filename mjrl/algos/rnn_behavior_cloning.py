@@ -124,6 +124,7 @@ class rnn_BC:
         if self.save_logs:
             loss_val = self.loss(data, idx=range(num_samples)).data.numpy().ravel()[0]
             self.logger.log_kv('loss_before', loss_val)'''
+        losses = []
         rng = np.random.default_rng(seed=self.seed)
         for ep in range(self.epochs):
             rdx = int(rng.integers(low=0, high=len(self.expert_paths), size=1))
@@ -133,6 +134,7 @@ class rnn_BC:
             #print(type(int(rdx)))
             loss = self.loss((data['observations'])[rdx], (data['expert_actions'])[rdx])
             loss.backward()
+            losses.append(loss)
             self.optimizer.step()    
         '''# train loop
         for ep in config_tqdm(range(self.epochs), suppress_fit_tqdm):
@@ -144,7 +146,7 @@ class rnn_BC:
                 self.optimizer.step()'''
         params_after_opt = self.policy.get_param_values()
         self.policy.set_param_values(params_after_opt, set_new=True, set_old=True)
-
+        return losses
         # log stats after
         '''if self.save_logs:
             self.logger.log_kv('epoch', self.epochs)
@@ -159,7 +161,7 @@ class rnn_BC:
         expert_action_paths = [path["actions"] for path in self.expert_paths]
         #print([path["actions"].shape for path in self.expert_paths])
         data = dict(observations=observations, expert_actions=expert_action_paths)
-        self.fit(data, **kwargs)
+        return self.fit(data, **kwargs)
 
 
 def config_tqdm(range_inp, suppress_tqdm=False):

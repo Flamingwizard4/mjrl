@@ -184,7 +184,7 @@ class GymEnv(object):
         horizon = self._horizon if horizon is None else horizon
         mean_eval, std, min_eval, max_eval = 0.0, 0.0, -1e8, -1e8
         ep_returns = np.zeros(num_episodes)
-
+        performance = 0
         for ep in range(num_episodes):
             self.reset()
             if init_env_state is not None:
@@ -197,10 +197,12 @@ class GymEnv(object):
                 o, r, done, _ = self.step(a)
                 ep_returns[ep] += (gamma ** t) * r
                 t += 1
+            if _['goal_achieved']:
+                performance += 1
 
         mean_eval, std = np.mean(ep_returns), np.std(ep_returns)
         min_eval, max_eval = np.amin(ep_returns), np.amax(ep_returns)
-        base_stats = [mean_eval, std, min_eval, max_eval]
+        base_stats = [mean_eval, std, min_eval, max_eval, performance]
 
         percentile_stats = []
         for p in percentile:
