@@ -32,6 +32,7 @@ class BC:
         self.logger = DataLog()
         self.loss_type = loss_type
         self.save_logs = save_logs
+        self.losses = []
 
         if set_transforms:
             in_shift, in_scale, out_shift, out_scale = self.compute_transformations()
@@ -125,6 +126,7 @@ class BC:
                 loss = self.loss(data, idx=rand_idx)
                 losses.append(loss)
                 loss.backward()
+                self.losses.append(loss)
                 self.optimizer.step()
         params_after_opt = self.policy.get_param_values()
         self.policy.set_param_values(params_after_opt, set_new=True, set_old=True)
