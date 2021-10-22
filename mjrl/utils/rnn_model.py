@@ -5,7 +5,7 @@ import torch.nn as nn
 
 class RNN_model(nn.Module):
     def __init__(self, obs_dim, act_dim,
-                 n_layers=1,
+                 n_layers=2,
                  nonlinearity='tanh',   # either 'tanh' or 'relu'
                  in_shift = None,
                  in_scale = None,
