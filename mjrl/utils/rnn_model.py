@@ -5,28 +5,16 @@ import torch.nn as nn
 
 class RNN_model(nn.Module):
     def __init__(self, obs_dim, act_dim,
-<<<<<<< HEAD
-                 hidden_size=64,
                  n_layers=1,
                  nonlinearity='tanh',   # either 'tanh' or 'relu'
-                 batch_size=32,
-=======
-                 n_layers=1,
-                 nonlinearity='tanh',   # either 'tanh' or 'relu'
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
                  in_shift = None,
                  in_scale = None,
                  out_shift = None,
                  out_scale = None):
         super(RNN_model, self).__init__()
 
-<<<<<<< HEAD
-        self.rnn = nn.RNN(obs_dim, hidden_size, n_layers, nonlinearity=nonlinearity)
-        self.hx = torch.zeros(n_layers, batch_size, hidden_size)
-=======
         self.rnn = nn.RNN(obs_dim, act_dim, n_layers, nonlinearity=nonlinearity)
         self.hx = torch.zeros(n_layers, 1, act_dim) #here 1 is the batch size since we are training on one demonstration at a time
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
 
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -55,14 +43,10 @@ class RNN_model(nn.Module):
             out = x.to('cpu')
         else:
             out = x
-<<<<<<< HEAD
-        output, hn = self.rnn(x)
-=======
         #print("Input type: ", type(out))
         #print("Input len: ", len(x))
         #print("rnn_model.py forward input shape: ", x.shape)
         output, hn = self.rnn(out)
->>>>>>> 0e4ff573470ee8feb7407c65d5b7a6b07e67ebd4
         self.hx = hn
         #out = (out - self.in_shift)/(self.in_scale + 1e-8)
         #out = out * self.out_scale + self.out_shift

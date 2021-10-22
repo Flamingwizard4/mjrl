@@ -134,7 +134,7 @@ class rnn_BC:
             #print(type(int(rdx)))
             loss = self.loss((data['observations'])[rdx], (data['expert_actions'])[rdx])
             loss.backward()
-            losses.append(loss)
+            losses.append(loss.detach())
             self.optimizer.step()    
         '''# train loop
         for ep in config_tqdm(range(self.epochs), suppress_fit_tqdm):
