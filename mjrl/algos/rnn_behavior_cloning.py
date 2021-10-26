@@ -3,6 +3,8 @@ Minimize bc loss (MLE, MSE, RWR etc.) with pytorch optimizers
 """
 
 import logging
+
+from torch.nn.modules.loss import BCEWithLogitsLoss
 logging.disable(logging.CRITICAL)
 import numpy as np
 import time as timer
@@ -17,7 +19,7 @@ class rnn_BC:
                  policy,
                  epochs = 5,
                  seed=None,
-                 batch_size = 1,
+                 batch_size = 32,
                  lr = 1e-3,
                  optimizer = None,
                  loss_type = 'MSE',  # can be 'MLE' or 'MSE'
@@ -112,6 +114,41 @@ class rnn_BC:
         #print(acts_pi[1].shape)
         return self.loss_criterion(acts_pi[0], torch.unsqueeze(acts.detach(), 1))
 
+    def old_mse_loss(self, data, idx=None): #mse loss on whole trajectories (action pairs)
+        idx = range(data['observations'].shape[0]) if idx is None else idx
+        if type(data['observations']) is torch.Tensor:
+            idx = torch.LongTensor(idx)   
+        obs = np.array(data['observations'], dtype=float)[idx]
+        act_expert = np.array(data['expert_actions'], dtype=float)[idx]
+        if type(data['observations']) is not torch.Tensor:
+            obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
+            act_expert = Variable(torch.from_numpy(act_expert).float(), requires_grad=False)
+        act_pi = self.policy.model(obs)
+        '''print(len(act_pi))
+        print(act_pi)
+        print(type(act_expert.detach()))
+        raise Exception'''
+        return self.loss_criterion(act_pi[0], act_expert.detach())
+    
+    def pad_paths(self, obs, act, m):
+        new_obs, new_act = [], []
+        for i in range(len(obs)):
+            o, a = obs[i], act[i]
+            n = o.shape[0]
+            last_o = np.reshape(o[-1][:], (1, o.shape[1])) #should be outside the loop but too lazy
+            null_a = np.zeros((1, a.shape[1]))
+            while n < m:
+                '''print(type(a))
+                print(a.shape)
+                print(type(null_a))
+                print(null_a.shape)'''
+                o = np.concatenate((o, last_o))
+                a = np.concatenate((a, null_a))
+                n += 1
+            new_obs.append(o)
+            new_act.append(a)
+        return new_obs, new_act
+
     def fit(self, data, suppress_fit_tqdm=False, **kwargs):
         # data is a dict
         # keys should have "observations" and "expert_actions"
@@ -127,12 +164,12 @@ class rnn_BC:
         losses = []
         rng = np.random.default_rng(seed=self.seed)
         for ep in range(self.epochs):
-            rdx = int(rng.integers(low=0, high=len(self.expert_paths), size=1))
+            rdx = rng.integers(low=0, high=len(self.expert_paths), size=self.mb_size)
             self.optimizer.zero_grad()
             #print(type(data['observations'][0]))
             #print(rdx)
             #print(type(int(rdx)))
-            loss = self.loss((data['observations'])[rdx], (data['expert_actions'])[rdx])
+            loss = self.old_mse_loss(data, idx=rdx) #(data['observations'])[rdx], (data['expert_actions'])[rdx]) 
             loss.backward()
             losses.append(loss.detach())
             self.optimizer.step()    
@@ -156,11 +193,20 @@ class rnn_BC:
 
     def train(self, **kwargs):
         observations = [path["observations"] for path in self.expert_paths]
+        max_obs_len = len(max(observations, key=len))
+        #print(max_obs_len)
         #print(self.expert_paths[0]["observations"].shape[1])
         #print(self.expert_paths[0]["actions"].shape[1])    
         expert_action_paths = [path["actions"] for path in self.expert_paths]
+        max_act_len = len(max(expert_action_paths, key=len))
+        #print(len(observations))
+        #print(len(expert_action_paths))
+        assert max_obs_len == max_act_len
+        #print(type(expert_action_paths[0][0]))
+        #print(expert_action_paths[0][0].shape)
+        obs, act = self.pad_paths(observations, expert_action_paths, max_act_len)
         #print([path["actions"].shape for path in self.expert_paths])
-        data = dict(observations=observations, expert_actions=expert_action_paths)
+        data = dict(observations=obs, expert_actions=act)
         return self.fit(data, **kwargs)
 
 

@@ -123,7 +123,7 @@ class BC:
             for mb in range(int(num_samples / self.mb_size)):
                 rand_idx = np.random.choice(num_samples, size=self.mb_size)
                 self.optimizer.zero_grad()
-                loss = self.loss(data, idx=rand_idx)
+                loss = self.loss(data, idx=rand_idx) #mse loss on whole trajectories (action pairs)
                 losses.append(loss)
                 loss.backward()
                 self.losses.append(loss)
