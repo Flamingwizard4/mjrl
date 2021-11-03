@@ -62,6 +62,12 @@ class RNN:
                                  for p in self.trainable_params])
         return params.copy()
 
+    def print_param_values(self):
+        params = self.trainable_params
+        for p in params:
+            print(p)
+            print(p.shape)
+
     def set_param_values(self, new_params, set_new=True, set_old=True):
         if set_new:
             current_idx = 0
@@ -97,10 +103,14 @@ class RNN:
         o = np.float32(observations)
         self.obs_var.data = torch.from_numpy(o)
         out, hn = self.model(self.obs_var)
-        '''print("rnn.py get_action output", out[-1].shape) #is this supposed to be the last output always?
-        print("rnn.py get_action hidden state", hn.shape)'''
         out2 = out[-1].detach()
-        #raise Exception
+        '''print("rnn.py get_action output", out[-1].shape) #is this supposed to be the last output always?
+        print("rnn.py get_action hidden state", hn.shape)      
+        print(self.obs_var.shape)
+        print(out.shape)
+        print(out2.shape)
+        print(out3.shape)
+        raise Exception'''
         mean = out2.numpy().ravel()
         #noise = np.exp(self.log_std_val) * np.random.randn(self.m)
         action = mean# + noise
