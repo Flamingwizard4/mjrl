@@ -196,15 +196,12 @@ class GymEnv(object):
                 a = policy.get_action(o)[1]['evaluation'] if mean_action is True else policy.get_action(o)[0]
                 o, r, done, _ = self.step(a)
                 ep_returns[ep] += (gamma ** t) * r
-                avg_reward += (gamma ** t) * r
                 t += 1
-            avg_reward /= t
             if _['goal_achieved']:
                 performance += 1
-        avg_reward /= num_episodes
         mean_eval, std = np.mean(ep_returns), np.std(ep_returns)
         min_eval, max_eval = np.amin(ep_returns), np.amax(ep_returns)
-        base_stats = [mean_eval, std, min_eval, max_eval, performance, avg_reward]
+        base_stats = [mean_eval, std, min_eval, max_eval, performance]
 
         percentile_stats = []
         for p in percentile:
