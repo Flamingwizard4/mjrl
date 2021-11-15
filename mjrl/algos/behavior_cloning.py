@@ -15,6 +15,7 @@ from tqdm import tqdm
 class BC:
     def __init__(self, expert_paths,
                  policy,
+                 env,
                  epochs = 5,
                  batch_size = 64,
                  lr = 1e-3,
@@ -27,6 +28,7 @@ class BC:
 
         self.policy = policy
         self.expert_paths = expert_paths
+        self.env = env
         self.epochs = epochs
         self.mb_size = batch_size
         self.logger = DataLog()
@@ -103,6 +105,58 @@ class BC:
             act_expert = Variable(torch.from_numpy(act_expert).float(), requires_grad=False)
         act_pi = self.policy.model(obs)
         return self.loss_criterion(act_pi, act_expert.detach())
+    
+    def selfrolled_mse_loss(self, data, idx=None): #doesn't work for training
+        idx = range(data['observations'].shape[0]) if idx is None else idx
+        if type(data['observations']) is torch.Tensor:
+            idx = torch.LongTensor(idx)   
+        obs = np.array(data['observations'], dtype=float)[idx]
+        act_expert = np.array(data['expert_actions'], dtype=float)[idx]
+        if type(data['observations']) is not torch.Tensor:
+            obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
+            act_expert = Variable(torch.from_numpy(act_expert).float(), requires_grad=False)
+        
+        self.env.reset()
+        t, done, performed, terminate_at_done, mean_action = 0, False, False, False, True
+        while len(obs.shape) < 3:
+            obs = torch.unsqueeze(obs, 0)
+        #obs, acts = torch.Tensor(1, 1, self.observation_dim), torch.Tensor(1, 1, self.action_dim)
+        while t < obs.shape[1] and (done == False or terminate_at_done == False):
+            for b in range(obs.shape[0]): #roll out each sample from batch separately
+                b_obs = new_obs[b, -1, :] if t > 0 else obs[b, 0, :]
+                ob = torch.unsqueeze(b_obs, 0)
+                if t == 0:
+                    ob = torch.unsqueeze(ob, 0)
+                a = self.policy.get_action(ob.detach())[1]['evaluation'] #if mean_action is True else self.policy.get_action(obs)[0]
+                o, r, done, _ = self.env.step(a)
+                o = self.env.get_obs()
+                if type(o) is not torch.Tensor:
+                    ob = Variable(torch.from_numpy(o).float(), requires_grad=True)
+                else:
+                    ob = o 
+                new_o = torch.unsqueeze(ob, 0)
+                new_o = torch.unsqueeze(new_o, 0)
+                new_ob = torch.cat((new_ob, new_o), 0) if b > 0 else new_o
+                if type(a) is not torch.Tensor:
+                    ac = Variable(torch.from_numpy(a).float(), requires_grad=True)
+                else:
+                    ac = a
+                act_pi = torch.unsqueeze(ac, 0)
+                act_pi = torch.unsqueeze(act_pi, 0)
+                new_act = torch.cat((new_act, act_pi), 0) if b > 0 else act_pi
+                #print(new_act.shape)
+            
+            new_obs = torch.cat((new_obs, new_ob), 1) if t > 0 else new_ob
+            
+            acts_pi = torch.cat((acts_pi, new_act), 1) if t > 0 else new_act
+            #print(acts_pi.shape)
+            t += 1
+
+        if _['goal_achieved']:
+            performed = True
+            print("Accomplished")
+        
+        return self.loss_criterion(acts_pi, act_expert.detach()), performed
 
     def fit(self, data, suppress_fit_tqdm=False, **kwargs):
         # data is a dict
@@ -119,13 +173,16 @@ class BC:
         losses = []
         # train loop
         for ep in config_tqdm(range(self.epochs), suppress_fit_tqdm):
+            b_loss = 0
             for mb in range(int(num_samples / self.mb_size)):
                 rand_idx = np.random.choice(num_samples, size=self.mb_size)
                 self.optimizer.zero_grad()
                 loss = self.loss(data, idx=rand_idx) #mse loss on whole trajectories (action pairs)
-                losses.append(loss.detach())
+                b_loss += loss.detach()
                 loss.backward()
                 self.optimizer.step()
+            b_loss /= self.mb_size
+            losses.append(b_loss)
         params_after_opt = self.policy.get_param_values()
         self.policy.set_param_values(params_after_opt, set_new=True, set_old=True)
         return losses

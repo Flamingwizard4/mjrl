@@ -197,26 +197,16 @@ class GymEnv(object):
             while t < horizon and (done == False or terminate_at_done == False):
                 self.render() if visual is True else None
                 o = self.get_obs()
-                #o = np.reshape(o, (1, 1, len(o)))
                 if type(o) is not torch.Tensor:
                     ob = Variable(torch.from_numpy(o).float(), requires_grad=False)
                 ob = torch.unsqueeze(ob, 0)
                 ob = torch.unsqueeze(ob, 0)
-                #print(ob.shape)
-                #print(obs.shape)
-                obs = torch.cat((obs, ob)) if t > 0 else ob
-                #print(obs.shape)
-                #print(type(ob))
-                #print("real shape here", ob.shape)
+                obs = torch.cat((obs, ob), 1) if t > 0 else ob
                 a = policy.get_action(obs)[1]['evaluation'] if mean_action is True else policy.get_action(obs)[0]
-                if type(a) is not torch.Tensor:
+                '''if type(a) is not torch.Tensor:
                     ac = Variable(torch.from_numpy(a).float(), requires_grad=False)
-                ac = torch.unsqueeze(ac, 0)
-                ac = torch.unsqueeze(ac, 0)
-                acts = torch.cat((acts, ac)) if t > 0 else ac
-                #print(type(ac))
-                #print(type(acts))
-                #raise Exception
+                ac = torch.unsqueeze(ac, 1)
+                acts = torch.cat((acts, ac), 1) if t > 0 else ac'''
                 o, r, done, _ = self.step(a)
                 ep_returns[ep] += (gamma ** t) * r
                 
@@ -234,3 +224,30 @@ class GymEnv(object):
         full_dist = ep_returns if get_full_dist is True else None
 
         return [base_stats, percentile_stats, full_dist]
+
+    def evaluate_train_vs_test(self, agent, data, seed=123):
+
+        self.set_seed(seed)
+        rng = np.random.default_rng(seed=seed)
+        train_rdx = rng.choice(20, size=5, replace=False)
+        obs = [path["observations"] for path in data]
+        act = [path["actions"] for path in data]
+        train_obs = obs[:-5]
+        test_obs = obs[-5:]
+        train_act = act[:-5]
+        test_act = act[-5:]
+        base_stats_train, base_stats_test = [], []
+        for k in range(len(test_obs)):
+            data_dict = dict(observations=np.expand_dims(train_obs[train_rdx[k]], axis=0), expert_actions=np.expand_dims(train_act[train_rdx[k]], 0))
+            self_loss, p = agent.selfrolled_mse_loss(data_dict)
+            losses = [agent.old_mse_loss(data_dict).detach(), self_loss.detach(), p]
+            #loss = agent.old_mse_loss(data_dict)
+            base_stats_train.append(losses)
+        for k in range(len(test_obs)):
+            data_dict = dict(observations=np.expand_dims(test_obs[k], 0), expert_actions=np.expand_dims(test_act[k], 0))
+            self_loss, p = agent.selfrolled_mse_loss(data_dict)
+            losses = [agent.old_mse_loss(data_dict).detach(), self_loss.detach(), p]
+            #loss = agent.old_mse_loss(data_dict)
+            base_stats_test.append(losses)
+
+        return [base_stats_train, base_stats_test]

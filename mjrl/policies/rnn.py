@@ -6,7 +6,10 @@ from torch.autograd import Variable
 
 class RNN:
     def __init__(self, env_spec,
-                 n_layers=1,
+                 hidden_size=64,
+                 n_layers=2,
+                 fc_sizes = (64,64),
+                 nonlinearity='tanh',
                  min_log_std=-3,
                  init_log_std=0,
                  seed=None):
@@ -29,10 +32,11 @@ class RNN:
 
         # Policy network
         # ------------------------
-        self.model = RNN_model(self.n, self.m, n_layers=n_layers)
-        # make weights small
+        self.model = RNN_model(self.n, self.m, rnn_hidden_size=hidden_size, n_layers=n_layers, fc_hidden_sizes=fc_sizes, nonlinearity=nonlinearity)
+        '''# make weights small
         for param in list(self.model.parameters())[-2:]:  # only last layer
            param.data = 1e-2 * param.data
+        '''
         self.log_std = Variable(torch.ones(self.m) * init_log_std, requires_grad=True)
         self.trainable_params = list(self.model.parameters()) + [self.log_std]
 
@@ -103,7 +107,7 @@ class RNN:
         o = np.float32(observations)
         self.obs_var.data = torch.from_numpy(o)
         out, hn = self.model(self.obs_var)
-        out2 = out[-1].detach()
+        out2 = out.detach()
         '''print("rnn.py get_action output", out[-1].shape) #is this supposed to be the last output always?
         print("rnn.py get_action hidden state", hn.shape)      
         print(self.obs_var.shape)
@@ -111,10 +115,11 @@ class RNN:
         print(out2.shape)
         print(out3.shape)
         raise Exception'''
+        orig_act = out2
         mean = out2.numpy().ravel()
         #noise = np.exp(self.log_std_val) * np.random.randn(self.m)
         action = mean# + noise
-        return [action, {'mean': mean, 'log_std': self.log_std_val, 'evaluation': mean}]
+        return [action, {'mean': mean, 'log_std': self.log_std_val, 'evaluation': mean}, orig_act]
 
     def mean_LL(self, observations, actions, model=None, log_std=None):
         model = self.model if model is None else model
