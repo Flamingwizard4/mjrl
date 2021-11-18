@@ -131,7 +131,7 @@ class rnn_BC:
             acts_pi = torch.cat((acts_pi, act_pi), 1) if o > 0 else act_pi
         return self.loss_criterion(acts_pi, actx.detach())
     
-    def selfrolled_mse_loss(self, data, idx=None): #doesn't work for training
+    def selfrolled_mse_loss(self, data, idx=None): #doesn't train well
         idx = range(data['observations'].shape[0]) if idx is None else idx
         if type(data['observations']) is torch.Tensor:
             idx = torch.LongTensor(idx)   
